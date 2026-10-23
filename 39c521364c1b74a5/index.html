@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="de" class="">
+<script>document.documentElement.classList.add('js');</script>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Notebook-Preise simulieren</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='12' width='52' height='32' rx='4' fill='%232F6FED'/%3E%3Crect x='11' y='17' width='42' height='22' rx='2' fill='%23fff'/%3E%3Crect x='2' y='46' width='60' height='6' rx='3' fill='%232F6FED'/%3E%3Ctext x='32' y='34' font-family='Arial' font-weight='700' font-size='16' text-anchor='middle' fill='%232F6FED'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
+<style>
+/* Tokens: hell als Vorgabe, dunkel über Systemeinstellung oder Schalter (data-theme). */
+:root {
+  --bg: #F5F6F8; --sf: #FFFFFF; --sf2: #F0F1F4; --line: #E3E5E9; --line2: #CDD1DA;
+  --ink: #16181D; --ink2: #3C424D; --ink3: #6F7780;
+  --acc: #2F6FED; --acc-ink: #FFFFFF; --acc-soft: rgba(47, 111, 237, .10);
+  --ok: #1B7F50; --stop: #C0392B; --stop-soft: rgba(192, 57, 43, .14); --warn: #946A00; --warn-soft: rgba(232, 182, 44, .18);
+  --band: #378ADD; --grau: #5D6D7E; --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141B; --sf: #1A1D26; --sf2: #20232F; --line: #2A2E3C; --line2: #3A3F4F;
+    --ink: #ECEEF2; --ink2: #C3C8D2; --ink3: #8E96A3;
+    --acc: #6B9AFF; --acc-ink: #0E1220; --acc-soft: rgba(107, 154, 255, .14);
+    --ok: #3ECF8E; --stop: #FF6B5B; --stop-soft: rgba(255, 107, 91, .18); --warn: #E8B62C; --warn-soft: rgba(232, 182, 44, .16);
+    --band: #5DA2EA; --grau: #8593A3; --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12141B; --sf: #1A1D26; --sf2: #20232F; --line: #2A2E3C; --line2: #3A3F4F;
+  --ink: #ECEEF2; --ink2: #C3C8D2; --ink3: #8E96A3;
+  --acc: #6B9AFF; --acc-ink: #0E1220; --acc-soft: rgba(107, 154, 255, .14);
+  --ok: #3ECF8E; --stop: #FF6B5B; --stop-soft: rgba(255, 107, 91, .18); --warn: #E8B62C; --warn-soft: rgba(232, 182, 44, .16);
+  --band: #5DA2EA; --grau: #8593A3; --shadow: none;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding-bottom: env(safe-area-inset-bottom); }
+.wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 32px; }
+.muted { color: var(--ink3); }
+.pos { color: var(--ok); } .neg { color: var(--stop); }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; }
+
+/* Kopf, bleibt oben: Kanalwahl und Gesamtergebnis sichtbar, während unten Preise verschoben werden. */
+.kopf { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.kopf-in { max-width: 560px; margin: 0 auto; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; }
+.titel { display: flex; align-items: center; gap: 10px; }
+.titel h1 { font-size: 17px; margin: 0; line-height: 1.2; flex: 1; }
+.titel h1 small { display: block; font-size: 12px; font-weight: 400; color: var(--ink3); }
+.schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink3); cursor: pointer; user-select: none; }
+.schalter input { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 10px; background: var(--line2); position: relative; margin: 0; cursor: pointer; transition: background .2s; }
+.schalter input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sf); transition: transform .2s; box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.schalter input:checked { background: var(--acc); }
+.schalter input:checked::after { transform: translateX(14px); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-top: 10px; background: var(--sf2); border-radius: 12px; }
+.seg button { border: 0; background: transparent; padding: 8px 4px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink2); cursor: pointer; }
+.seg button.on { background: var(--sf); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.gesamt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.gesamt div { background: var(--sf); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.gesamt span { display: block; font-size: 11.5px; color: var(--ink3); }
+.gesamt b { font-size: 21px; line-height: 1.2; font-variant-numeric: tabular-nums; transition: color .2s; }
+
+h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin: 24px 4px 10px; }
+.hinweis { font-size: 13px; color: var(--ink3); margin: -4px 4px 12px; }
+.karte { background: var(--sf); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.js .karte { animation: rein .45s ease both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes rein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Gruppenkarte: Preis mit Plus/Minus, Regler, Mini-Leiter, Marge groß. */
+.g-kopf { display: flex; justify-content: space-between; gap: 10px; }
+.g-kopf b { font-size: 15.5px; }
+.g-kopf .muted { font-size: 12.5px; }
+.g-stk { font-size: 12px; color: var(--ink2); text-align: right; white-space: nowrap; }
+.g-preis { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 4px; }
+.g-preis .wert { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.g-preis .wert small { font-size: 12px; font-weight: 400; color: var(--ink3); margin-left: 4px; letter-spacing: 0; }
+.stepper { display: flex; gap: 6px; }
+.stepper button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--sf2); font-size: 22px; line-height: 1; cursor: pointer; }
+.stepper button:active { transform: scale(.95); background: var(--acc-soft); }
+.leiter { position: relative; height: 40px; margin: 6px 11px 0; }
+.leiter .basis { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: var(--line); border-radius: 2px; }
+.leiter .verlust { position: absolute; left: 0; top: 6px; bottom: 6px; border-radius: 6px 0 0 6px; background: repeating-linear-gradient(135deg, var(--stop-soft) 0 6px, transparent 6px 10px); }
+.leiter .band { position: absolute; top: 50%; height: 12px; margin-top: -6px; border-radius: 4px; background: color-mix(in srgb, var(--band) 30%, transparent); }
+.leiter .band.h { height: 6px; margin-top: -3px; background: color-mix(in srgb, var(--band) 70%, transparent); }
+.leiter .mk { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.leiter .schwelle { width: 2px; height: 28px; background: var(--stop); border-radius: 2px; }
+.leiter .ek { width: 2px; height: 16px; background: var(--ink); border-radius: 2px; }
+.leiter .plan { width: 10px; height: 10px; border: 2px solid var(--ink3); border-radius: 50%; background: var(--sf); }
+.leiter .gebot { width: 10px; height: 10px; background: var(--warn); transform: translate(-50%, -50%) rotate(45deg); border-radius: 2px; }
+.leiter .punkt { position: absolute; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--acc); border: 3px solid var(--sf); box-shadow: 0 0 0 1px var(--acc); }
+.leiter .punkt.minus { background: var(--stop); box-shadow: 0 0 0 1px var(--stop); }
+.js .leiter .punkt, html:not(.js) .leiter input[type=range], html:not(.js) .stepper, html:not(.js) .annahmen, html:not(.js) #reset, html:not(.js) .nurjs, .js .nurstatisch { display: none; }
+.vorschau { margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--acc-soft); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); font-size: 14px; }
+.vorschau b { display: block; margin-bottom: 2px; }
+.vorschau a { color: var(--acc); font-weight: 600; word-break: break-all; }
+.leiter input[type=range] { position: absolute; left: -11px; width: calc(100% + 22px); top: 0; height: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; touch-action: pan-y; }
+.leiter input[type=range]::-webkit-slider-runnable-track { background: transparent; height: 100%; }
+.leiter input[type=range]::-moz-range-track { background: transparent; }
+.leiter input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: 9px; border-radius: 50%; background: var(--acc); border: 3px solid var(--sf); box-shadow: 0 0 0 1px var(--acc), 0 2px 6px rgba(0, 0, 0, .25); }
+.leiter input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--acc); border: 3px solid var(--sf); box-shadow: 0 0 0 1px var(--acc); }
+.leiter input[type=range].minus::-webkit-slider-thumb { background: var(--stop); box-shadow: 0 0 0 1px var(--stop), 0 2px 6px rgba(0, 0, 0, .25); }
+.leiter input[type=range].minus::-moz-range-thumb { background: var(--stop); box-shadow: 0 0 0 1px var(--stop); }
+.skala { display: flex; justify-content: space-between; margin: 2px 0 0; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.g-marge { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.g-marge .je { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color .2s; }
+.g-marge .je small { font-size: 12px; font-weight: 400; color: var(--ink3); margin-left: 4px; }
+.g-marge .sum { font-size: 13px; color: var(--ink2); text-align: right; font-variant-numeric: tabular-nums; }
+.g-fakten { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; font-size: 12.5px; color: var(--ink3); }
+.g-fakten b { color: var(--ink2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink3); margin: 0 4px 12px; }
+.legende i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+.lg-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--acc); }
+.lg-verlust { width: 14px; height: 8px; border-radius: 2px; background: repeating-linear-gradient(135deg, var(--stop) 0 2px, transparent 2px 4px); opacity: .7; }
+.lg-band { width: 14px; height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--band) 30%, transparent); }
+.lg-bandh { width: 14px; height: 5px; border-radius: 2px; background: color-mix(in srgb, var(--band) 70%, transparent); }
+.lg-ek { width: 2px; height: 12px; background: var(--ink); }
+.lg-plan { width: 8px; height: 8px; border: 2px solid var(--ink3); border-radius: 50%; }
+.lg-schwelle { width: 2px; height: 12px; background: var(--stop); }
+
+/* Kanalvergleich (Klassen aus us-preise.js). */
+.us-pr-kanal { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.us-pr-k { display: grid; grid-template-columns: 1fr 76px; grid-template-rows: auto auto; gap: 6px 10px; align-items: center; padding: 10px 8px; border-radius: 10px; }
+.us-pr-k.waehlbar { cursor: pointer; }
+.us-pr-k.active { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); }
+.us-pr-k-name { display: flex; flex-direction: column; min-width: 0; }
+.us-pr-k-name b { font-size: 14px; }
+.us-pr-k-name .muted { font-size: 12px; }
+.us-pr-k-track { grid-column: 1 / -1; grid-row: 2; }
+.us-pr-k-track, .us-pr-pv-track { position: relative; height: 12px; }
+.us-pr-k-null, .us-pr-pv-null { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--line2); }
+.us-pr-k-fill, .us-pr-pv-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; transition: width .25s ease; }
+.us-pr-k-fill.pos, .us-pr-pv-fill.paket { background: var(--ok); }
+.us-pr-k-fill.neg, .us-pr-pv-fill.neg { background: var(--stop); }
+.us-pr-k-fill.alt { background: transparent; border: 2px dashed var(--ink3); }
+.us-pr-pv-fill.einzeln { background: var(--grau); }
+.us-pr-pv-fill.einzeln.neg { background: color-mix(in srgb, var(--stop) 55%, var(--grau)); }
+.us-pr-k-val { grid-column: 2; grid-row: 1; text-align: right; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.fk-neg { color: var(--stop); } .fk-pos { color: var(--ok); }
+
+/* Pakete (Klassen aus us-preise.js). */
+.us-pr-pakete { display: grid; gap: 12px; }
+.us-pr-paket { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--sf); box-shadow: var(--shadow); }
+.us-pr-p-kopf { display: flex; align-items: center; gap: 8px; }
+.us-pr-p-kopf .muted { margin-left: auto; font-size: 12px; }
+.us-pr-p-buchst { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--acc); color: var(--acc-ink); font-weight: 700; font-size: 12px; }
+.us-pr-p-preis { display: flex; align-items: baseline; gap: 6px; }
+.us-pr-p-preis input { width: 130px; font: inherit; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--sf2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; }
+.us-pr-p-preis input:focus { outline: 2px solid var(--acc); outline-offset: 1px; }
+.us-pr-p-preis span { color: var(--ink3); font-size: 12px; }
+.us-pr-p-sub { font-size: 12.5px; }
+.us-pr-pv { display: grid; grid-template-columns: 92px 1fr 64px; gap: 8px; align-items: center; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.us-pr-pv b { text-align: right; }
+.us-pr-p-inhalt { margin: 2px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--ink2); }
+.us-pr-p-fuss { font-size: 12px; line-height: 1.45; }
+
+/* Auktion (SVG aus us-preise.js). */
+.us-pr-auktion { width: 100%; height: auto; display: block; }
+.us-pr-a-grid { stroke: var(--line); stroke-width: 1; }
+.us-pr-a-ax { fill: var(--ink3); font-size: 12px; }
+.us-pr-a-min { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.us-pr-a-schwelle { stroke: var(--stop); stroke-width: 1.5; }
+.us-pr-a-lbl { fill: var(--ink2); font-size: 12px; }
+.us-pr-a-line { fill: none; stroke: var(--acc); stroke-width: 2.5; stroke-linejoin: round; }
+.js .us-pr-a-line { stroke-dasharray: 1600; animation: zeichnen 1.4s ease both .2s; }
+.us-pr-a-pt { fill: var(--acc); stroke: var(--sf); stroke-width: 2; }
+.us-pr-a-end { fill: var(--ink); font-size: 14px; font-weight: 700; }
+@keyframes zeichnen { from { stroke-dashoffset: 1600; } to { stroke-dashoffset: 0; } }
+.fakten { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.fakten div { background: var(--sf2); border-radius: 10px; padding: 8px; }
+.fakten span { display: block; font-size: 11px; color: var(--ink3); }
+.fakten b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.vorschlag { margin-top: 10px; font-size: 13px; color: var(--ink2); }
+
+/* Annahmen zum Aufklappen, eigener Pfeil innerhalb der Box. */
+details.annahmen { background: var(--sf); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 12px; }
+details.annahmen summary { list-style: none; cursor: pointer; padding: 14px 14px 14px 38px; position: relative; font-weight: 600; }
+details.annahmen summary::-webkit-details-marker { display: none; }
+details.annahmen summary::before { content: ''; position: absolute; left: 16px; top: 50%; width: 7px; height: 7px; border-right: 2px solid var(--ink3); border-bottom: 2px solid var(--ink3); transform: translateY(-70%) rotate(-45deg); transition: transform .2s; }
+details.annahmen[open] summary::before { transform: translateY(-70%) rotate(45deg); }
+.felder { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 14px 14px; }
+.felder label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink3); }
+.felder input { font: inherit; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--sf2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; width: 100%; }
+.knopf { display: block; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--sf); font-weight: 600; cursor: pointer; margin-top: 4px; }
+.fuss { font-size: 12px; color: var(--ink3); margin: 18px 4px 0; line-height: 1.5; }
+/* Breite Fassung für den Desktop (Erzeuger --layout breit): gleiche Bausteine, mehr Spalten. */
+.breit .kopf-in, .breit .wrap { max-width: 1180px; padding-left: 24px; padding-right: 24px; }
+.breit .kopf-in { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(300px, 400px) minmax(280px, 360px); gap: 16px; align-items: center; }
+.breit .titel h1 { font-size: 20px; }
+.breit .seg, .breit .gesamt { margin-top: 0; }
+.breit .vorschau { grid-column: 1 / -1; margin-top: 0; }
+.breit #gruppen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.breit #gruppen .karte { margin-bottom: 0; }
+.breit .zwei { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.breit .us-pr-pakete { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.breit .annahmen .felder { grid-template-columns: repeat(4, 1fr); }
+.breit #reset { max-width: 320px; }
+@media (max-width: 900px) { .breit .kopf-in { grid-template-columns: 1fr; } .breit #gruppen, .breit .zwei, .breit .us-pr-pakete { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .js .karte, .js .us-pr-a-line { animation: none; } .us-pr-k-fill, .us-pr-pv-fill, .gesamt b, .g-marge .je { transition: none; } }
+</style>
+</head>
+<body>
+<header class="kopf"><div class="kopf-in">
+  <div class="titel">
+    <h1>Notebook-Preise simulieren<small id="stand">Restbestand 10 Geräte · Stand 22.10.2026</small></h1>
+    <label class="schalter nurjs"><input type="checkbox" id="dunkel" aria-label="Dunkler Modus"> Dunkel</label>
+  </div>
+  <div class="seg" role="tablist" id="kanaele"><button type="button" role="tab" class="on" aria-selected="true" data-kanal="ebay">eBay</button><button type="button" role="tab" class="" aria-selected="false" data-kanal="kleinanzeigen">Kleinanzeigen</button><button type="button" role="tab" class="" aria-selected="false" data-kanal="auktion">Auktion</button></div>
+  <div class="gesamt">
+    <div><span>Marge Restbestand</span><b id="gMarge" class="num pos">+170 €</b></div>
+    <div><span>Rückfluss netto</span><b id="gRueck">2.433 €</b></div>
+  </div>
+  <div class="vorschau nurstatisch"><b>Das ist die Vorschau.</b>Hier lesbar, aber nicht bedienbar. Zum Simulieren die Datei am PC im Browser öffnen.</div>
+</div></header>
+
+<main class="wrap">
+  <h2>Preise je Modell</h2>
+  <p class="hinweis nurjs">Regler ziehen oder ± tippen. Der Preis gilt für den oben gewählten Verkaufsweg, brutto inkl. 19 % USt.</p>
+  <div class="legende">
+    <span><i class="lg-dot"></i>Preis</span><span><i class="lg-verlust"></i>Verlustzone</span><span><i class="lg-schwelle"></i>Gewinnschwelle</span>
+    <span><i class="lg-band"></i>Markt privat</span><span><i class="lg-bandh"></i>Markt Händler</span><span><i class="lg-ek"></i>Einkauf</span><span><i class="lg-plan"></i>alter Plan</span>
+  </div>
+  <div id="gruppen"><section class="karte" style="--i:0" data-g="t14s-g3">
+    <div class="g-kopf"><div><b>ThinkPad T14s Gen 3</b><div class="muted">i5-1240P · 16 GB · 256 GB · Folie A+</div></div><div class="g-stk">4 Geräte<br>EK 316 € Ø</div></div>
+    <div class="g-preis"><div class="wert" data-preis>499 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:37.64%"></span>
+      <span class="band " style="left:44.44444444444444%;width:22.222222222222214%"></span><span class="band h" style="left:77.77777777777779%;width:2.2222222222222143%"></span>
+      <span class="mk schwelle" style="left:37.64%"></span><span class="mk ek" style="left:14.744444444444449%"></span><span class="mk plan" style="left:77.55555555555556%"></span><span class="mk plan" style="left:84.22222222222221%"></span><span class="mk gebot" style="left:13.555555555555557%"></span>
+      <span class="punkt" style="left:55.333333333333336%"></span>
+      <input type="range" min="250" max="700" step="1" value="499" class="" aria-label="Preis ThinkPad T14s Gen 3 i5-1240P · 16 GB · 256 GB · Folie A+">
+    </div>
+    <div class="skala"><span>250 €</span><span>700 €</span></div>
+    <div class="g-marge"><div class="je pos" data-je>+66 €<small>je Gerät</small></div><div class="sum" data-sum>4 × = <b class="">+264 €</b></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>403 €–419 €</b></span><span>alter Plan-VK<br><b>599 € / 629 €</b></span>
+      <span>Markt privat<br><b>450 €–550 €</b></span><span>Markt Händler<br><b>600 €–610 €</b></span>
+    </div>
+  </section><section class="karte" style="--i:1" data-g="840-g6-16">
+    <div class="g-kopf"><div><b>HP EliteBook 840 G6</b><div class="muted">i5-8265U · 16 GB · Chassis A, Display A+</div></div><div class="g-stk">1 Gerät<br>EK 180 €</div></div>
+    <div class="g-preis"><div class="wert" data-preis>229 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:71.44%"></span>
+      <span class="band " style="left:40%;width:20%"></span><span class="band h" style="left:44.5%;width:35%"></span>
+      <span class="mk schwelle" style="left:71.44%"></span><span class="mk ek" style="left:40%"></span><span class="mk plan" style="left:74.5%"></span>
+      <span class="punkt minus" style="left:64.5%"></span>
+      <input type="range" min="100" max="300" step="1" value="229" class="minus" aria-label="Preis HP EliteBook 840 G6 i5-8265U · 16 GB · Chassis A, Display A+">
+    </div>
+    <div class="skala"><span>100 €</span><span>300 €</span></div>
+    <div class="g-marge"><div class="je neg" data-je>−11 €<small>je Gerät</small></div><div class="sum" data-sum></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>243 €</b></span><span>alter Plan-VK<br><b>249 €</b></span>
+      <span>Markt privat<br><b>180 €–220 €</b></span><span>Markt Händler<br><b>189 €–259 €</b></span>
+    </div>
+  </section><section class="karte" style="--i:2" data-g="840-g5-16">
+    <div class="g-kopf"><div><b>HP EliteBook 840 G5</b><div class="muted">i5-8250U · 16 GB · Chassis A</div></div><div class="g-stk">2 Geräte<br>EK 167 € Ø</div></div>
+    <div class="g-preis"><div class="wert" data-preis>209 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:62.895%"></span>
+      <span class="band " style="left:35%;width:20.000000000000007%"></span><span class="band h" style="left:49.5%;width:23%"></span>
+      <span class="mk schwelle" style="left:62.895%"></span><span class="mk ek" style="left:33.25%"></span><span class="mk plan" style="left:64.5%"></span>
+      <span class="punkt minus" style="left:54.50000000000001%"></span>
+      <input type="range" min="100" max="300" step="1" value="209" class="minus" aria-label="Preis HP EliteBook 840 G5 i5-8250U · 16 GB · Chassis A">
+    </div>
+    <div class="skala"><span>100 €</span><span>300 €</span></div>
+    <div class="g-marge"><div class="je neg" data-je>−13 €<small>je Gerät</small></div><div class="sum" data-sum>2 × = <b class="neg">−27 €</b></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>226 €</b></span><span>alter Plan-VK<br><b>229 €</b></span>
+      <span>Markt privat<br><b>170 €–210 €</b></span><span>Markt Händler<br><b>199 €–245 €</b></span>
+    </div>
+  </section><section class="karte" style="--i:3" data-g="840-g5-8">
+    <div class="g-kopf"><div><b>HP EliteBook 840 G5</b><div class="muted">i5-8250U · 8 GB · Folie A+</div></div><div class="g-stk">1 Gerät<br>EK 147 €</div></div>
+    <div class="g-preis"><div class="wert" data-preis>179 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:67.16000000000001%"></span>
+      <span class="band " style="left:33.33333333333333%;width:20.000000000000007%"></span><span class="band h" style="left:46.666666666666664%;width:13.333333333333336%"></span>
+      <span class="mk schwelle" style="left:67.16000000000001%"></span><span class="mk ek" style="left:31.133333333333326%"></span><span class="mk plan" style="left:59.333333333333336%"></span>
+      <span class="punkt minus" style="left:52.666666666666664%"></span>
+      <input type="range" min="100" max="250" step="1" value="179" class="minus" aria-label="Preis HP EliteBook 840 G5 i5-8250U · 8 GB · Folie A+">
+    </div>
+    <div class="skala"><span>100 €</span><span>250 €</span></div>
+    <div class="g-marge"><div class="je neg" data-je>−17 €<small>je Gerät</small></div><div class="sum" data-sum></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>201 €</b></span><span>alter Plan-VK<br><b>189 €</b></span>
+      <span>Markt privat<br><b>150 €–180 €</b></span><span>Markt Händler<br><b>170 €–190 €</b></span>
+    </div>
+  </section><section class="karte" style="--i:4" data-g="t14s-g1-16">
+    <div class="g-kopf"><div><b>ThinkPad T14s Gen 1</b><div class="muted">i5-10210U · 16 GB · Folie A+</div></div><div class="g-stk">1 Gerät<br>EK 183 €</div></div>
+    <div class="g-preis"><div class="wert" data-preis>219 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:73.145%"></span>
+      <span class="band " style="left:35%;width:20.000000000000007%"></span><span class="band h" style="left:38.5%;width:26.5%"></span>
+      <span class="mk schwelle" style="left:73.145%"></span><span class="mk ek" style="left:41.349999999999994%"></span><span class="mk plan" style="left:64.5%"></span>
+      <span class="punkt minus" style="left:59.5%"></span>
+      <input type="range" min="100" max="300" step="1" value="219" class="minus" aria-label="Preis ThinkPad T14s Gen 1 i5-10210U · 16 GB · Folie A+">
+    </div>
+    <div class="skala"><span>100 €</span><span>300 €</span></div>
+    <div class="g-marge"><div class="je neg" data-je>−22 €<small>je Gerät</small></div><div class="sum" data-sum></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>246 €</b></span><span>alter Plan-VK<br><b>229 €</b></span>
+      <span>Markt privat<br><b>170 €–210 €</b></span><span>Markt Händler<br><b>177 €–230 €</b></span>
+    </div>
+  </section><section class="karte" style="--i:5" data-g="t14s-g1-8">
+    <div class="g-kopf"><div><b>ThinkPad T14s Gen 1</b><div class="muted">i5-10210U · 8 GB · Folie A+</div></div><div class="g-stk">1 Gerät<br>EK 156 €</div></div>
+    <div class="g-preis"><div class="wert" data-preis>189 €<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      <span class="verlust" style="width:74.75333333333333%"></span>
+      <span class="band " style="left:33.33333333333333%;width:26.66666666666667%"></span><span class="band h" style="left:46.666666666666664%;width:26.666666666666664%"></span>
+      <span class="mk schwelle" style="left:74.75333333333333%"></span><span class="mk ek" style="left:37.133333333333326%"></span><span class="mk plan" style="left:66%"></span>
+      <span class="punkt minus" style="left:59.333333333333336%"></span>
+      <input type="range" min="100" max="250" step="1" value="189" class="minus" aria-label="Preis ThinkPad T14s Gen 1 i5-10210U · 8 GB · Folie A+">
+    </div>
+    <div class="skala"><span>100 €</span><span>250 €</span></div>
+    <div class="g-marge"><div class="je neg" data-je>−18 €<small>je Gerät</small></div><div class="sum" data-sum></div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>212 €</b></span><span>alter Plan-VK<br><b>199 €</b></span>
+      <span>Markt privat<br><b>150 €–190 €</b></span><span>Markt Händler<br><b>170 €–210 €</b></span>
+    </div>
+  </section></div>
+
+  <div class="zwei"><section>
+  <h2>Was der Restbestand bringt</h2>
+  <p class="hinweis">Marge aller Geräte nach Einkauf.<span class="nurjs"> Tippen auf eBay, Kleinanzeigen oder Auktion wählt den Verkaufsweg.</span></p>
+  <div class="karte" id="kanal"><ul class="us-pr-kanal"><li class="us-pr-k" style="--i:0" data-tip="eBay zu den Plan-Preisen vom Mai">
+        <span class="us-pr-k-name"><b>alter Plan-VK</b><span class="muted">eBay zu den Plan-Preisen vom Mai</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill pos alt" style="left:50%;width:50%"></span></span>
+        <span class="us-pr-k-val ">+628 €</span></li><li class="us-pr-k active waehlbar" style="--i:1" data-usprkanal="ebay" role="button" tabindex="0" data-tip="Provision 5,95 % + 0,54 €, Etikett 7,69 €">
+        <span class="us-pr-k-name"><b>eBay Festpreis</b><span class="muted">Provision 5,95 % + 0,54 €, Etikett 7,69 €</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill pos" style="left:50%;width:13.51131913267743%"></span></span>
+        <span class="us-pr-k-val ">+170 €</span></li><li class="us-pr-k waehlbar" style="--i:2" data-usprkanal="kleinanzeigen" role="button" tabindex="0" data-tip="Abholung, keine Gebühr">
+        <span class="us-pr-k-name"><b>Kleinanzeigen</b><span class="muted">Abholung, keine Gebühr</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill pos" style="left:50%;width:23.48521030343554%"></span></span>
+        <span class="us-pr-k-val ">+295 €</span></li><li class="us-pr-k waehlbar" style="--i:3" data-usprkanal="auktion" role="button" tabindex="0" data-tip="erwarteter Zuschlag">
+        <span class="us-pr-k-name"><b>eBay-Auktion</b><span class="muted">erwarteter Zuschlag</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill neg" style="right:50%;width:43.42264463336199%"></span></span>
+        <span class="us-pr-k-val fk-neg">−546 €</span></li><li class="us-pr-k" style="--i:4" data-tip="alle Geräte, netto an eine Firma">
+        <span class="us-pr-k-name"><b>Komplettpaket Firma</b><span class="muted">alle Geräte, netto an eine Firma</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill pos" style="left:50%;width:15.713057598624511%"></span></span>
+        <span class="us-pr-k-val ">+197 €</span></li></ul></div>
+  </section><section>
+
+
+  <h2 id="aTitel">ThinkPad T14s Gen 3, Auktion Juli</h2>
+  <div class="karte" id="auktion"><svg class="us-pr-auktion" viewBox="0 0 640 220" role="img" aria-label="Gebotsverlauf ThinkPad T14s Gen 3, Auktion Juli: von 100 € auf 311 €">
+      <line x1="52" x2="624" y1="190" y2="190" class="us-pr-a-grid"/><text x="44" y="194" class="us-pr-a-ax" text-anchor="end">0 €</text><line x1="52" x2="624" y1="158.36363636363635" y2="158.36363636363635" class="us-pr-a-grid"/><text x="44" y="162.36363636363635" class="us-pr-a-ax" text-anchor="end">100 €</text><line x1="52" x2="624" y1="126.72727272727272" y2="126.72727272727272" class="us-pr-a-grid"/><text x="44" y="130.72727272727272" class="us-pr-a-ax" text-anchor="end">200 €</text><line x1="52" x2="624" y1="95.0909090909091" y2="95.0909090909091" class="us-pr-a-grid"/><text x="44" y="99.0909090909091" class="us-pr-a-ax" text-anchor="end">300 €</text><line x1="52" x2="624" y1="63.45454545454545" y2="63.45454545454545" class="us-pr-a-grid"/><text x="44" y="67.45454545454545" class="us-pr-a-ax" text-anchor="end">400 €</text><line x1="52" x2="624" y1="31.818181818181824" y2="31.818181818181824" class="us-pr-a-grid"/><text x="44" y="35.81818181818183" class="us-pr-a-ax" text-anchor="end">500 €</text><text x="52" y="212" class="us-pr-a-ax" text-anchor="middle">21.07.</text><text x="166.4" y="212" class="us-pr-a-ax" text-anchor="middle">22.07.</text><text x="280.8" y="212" class="us-pr-a-ax" text-anchor="middle">23.07.</text><text x="395.2" y="212" class="us-pr-a-ax" text-anchor="middle">24.07.</text><text x="509.6" y="212" class="us-pr-a-ax" text-anchor="middle">25.07.</text><text x="624" y="212" class="us-pr-a-ax" text-anchor="middle">26.07.</text>
+      <line x1="52" x2="624" y1="47.636363636363626" y2="47.636363636363626" class="us-pr-a-min"/><text x="624" y="42.636363636363626" class="us-pr-a-lbl" text-anchor="end">Mindestpreis 450 €</text>
+      <line x1="52" x2="624" y1="57.323418181818184" y2="57.323418181818184" class="us-pr-a-schwelle"/><text x="58" y="71.32341818181818" class="us-pr-a-lbl" text-anchor="start">Gewinnschwelle 419 €</text>
+      <path d="M52.0,158.4 H138.9 V158.0 H150.0 V157.4 H150.0 V156.5 H150.0 V155.5 H150.0 V142.2 H150.0 V126.4 H152.2 V125.8 H269.2 V115.7 H303.4 V110.6 H611.5 V107.4 H619.7 V94.8 H624.0 V91.6 H624.0" class="us-pr-a-line"/><circle cx="52" cy="158.36363636363635" r="4" class="us-pr-a-pt"><title>21.07., 19:47 Uhr · 100 €</title></circle><circle cx="138.9492962962963" cy="158.04727272727274" r="4" class="us-pr-a-pt"><title>22.07., 14:01 Uhr · 101 €</title></circle><circle cx="149.95235185185186" cy="157.41454545454545" r="4" class="us-pr-a-pt"><title>22.07., 16:20 Uhr · 103 €</title></circle><circle cx="149.95897222222223" cy="156.46545454545455" r="4" class="us-pr-a-pt"><title>22.07., 16:20 Uhr · 106 €</title></circle><circle cx="149.9973703703704" cy="155.51636363636362" r="4" class="us-pr-a-pt"><title>22.07., 16:20 Uhr · 109 €</title></circle><circle cx="150.02782407407406" cy="142.22909090909093" r="4" class="us-pr-a-pt"><title>22.07., 16:21 Uhr · 151 €</title></circle><circle cx="150.0463611111111" cy="126.41090909090909" r="4" class="us-pr-a-pt"><title>22.07., 16:21 Uhr · 201 €</title></circle><circle cx="152.23108333333334" cy="125.7781818181818" r="4" class="us-pr-a-pt"><title>22.07., 16:49 Uhr · 203 €</title></circle><circle cx="269.1891944444444" cy="115.65454545454546" r="4" class="us-pr-a-pt"><title>23.07., 17:21 Uhr · 235 €</title></circle><circle cx="303.37413888888887" cy="110.59272727272729" r="4" class="us-pr-a-pt"><title>24.07., 00:31 Uhr · 251 €</title></circle><circle cx="611.450425925926" cy="107.4290909090909" r="4" class="us-pr-a-pt"><title>26.07., 17:09 Uhr · 261 €</title></circle><circle cx="619.6623333333333" cy="94.77454545454546" r="4" class="us-pr-a-pt"><title>26.07., 18:52 Uhr · 301 €</title></circle><circle cx="623.9933796296297" cy="91.61090909090909" r="4" class="us-pr-a-pt"><title>26.07., 19:47 Uhr · 311 €</title></circle>
+      <text x="615.9933796296297" y="81.61090909090909" class="us-pr-a-end" text-anchor="end">311 €</text>
+    </svg><div class="fakten"><div><span>Bieter · Gebote</span><b>9 · 25</b></div><div><span>Kosten ohne Verkauf</span><b>17 €</b></div><div><span>Ergebnis bei 311 €</span><b class="neg">−86 €</b></div></div>
+      <p class="vorschlag">Mindestpreis 450 € hat einen Verlust verhindert, die Gewinnschwelle liegt bei 419 €. Besser: Festpreis 549 € mit Preisvorschlag, automatisch annehmen ab 499 €, ablehnen unter 459 €.</p></div>
+  </section></div>
+
+  <h2>Paketpreise für Firmen</h2>
+  <p class="hinweis">Netto, ohne eBay-Gebühr und Versand.<span class="nurjs"> Preis antippen und ändern.</span></p>
+  <div id="pakete"><div class="us-pr-pakete"><section class="us-pr-paket" style="--i:0">
+        <div class="us-pr-p-kopf"><span class="us-pr-p-buchst">A</span><b>Mobiles Team</b><span class="muted">4 Geräte</span></div>
+        <label class="us-pr-p-preis"><input type="number" min="0" step="10" value="1599" data-usprpaket="a" aria-label="Paketpreis netto Mobiles Team" /><span>€ netto</span></label>
+        <div class="muted us-pr-p-sub">1.903 € brutto · 400 € je Gerät</div>
+        <div class="us-pr-pv"><span class="muted">als Paket</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill paket" style="left:50%;width:50%"></span></span><b class="">+318 €</b></div>
+        <div class="us-pr-pv"><span class="muted">einzeln über eBay</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill einzeln" style="left:50%;width:41.50647066214348%"></span></span><b class="">+264 €</b></div>
+        <ul class="us-pr-p-inhalt"><li>4× ThinkPad T14s Gen 3 (i5-1240P, 16 GB)</li></ul>
+        <div class="muted us-pr-p-fuss">Untergrenze 1.450 € netto (+169 €)<br>kleine Dienstleister, Beratungen, Startups</div>
+      </section><section class="us-pr-paket" style="--i:1">
+        <div class="us-pr-p-kopf"><span class="us-pr-p-buchst">B</span><b>Büro-Grundausstattung</b><span class="muted">6 Geräte</span></div>
+        <label class="us-pr-p-preis"><input type="number" min="0" step="10" value="999" data-usprpaket="b" aria-label="Paketpreis netto Büro-Grundausstattung" /><span>€ netto</span></label>
+        <div class="muted us-pr-p-sub">1.189 € brutto · 167 € je Gerät</div>
+        <div class="us-pr-pv"><span class="muted">als Paket</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill paket neg" style="right:50%;width:11.61413158451449%"></span></span><b class="fk-neg">−22 €</b></div>
+        <div class="us-pr-pv"><span class="muted">einzeln über eBay</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill einzeln neg" style="right:50%;width:50%"></span></span><b class="fk-neg">−95 €</b></div>
+        <ul class="us-pr-p-inhalt"><li>1× HP EliteBook 840 G6 (i5-8265U, 16 GB)</li><li>2× HP EliteBook 840 G5 (i5-8250U, 16 GB)</li><li>1× HP EliteBook 840 G5 (i5-8250U, 8 GB)</li><li>1× ThinkPad T14s Gen 1 (i5-10210U, 16 GB)</li><li>1× ThinkPad T14s Gen 1 (i5-10210U, 8 GB)</li></ul>
+        <div class="muted us-pr-p-fuss">Untergrenze 950 € netto (−71 €)<br>Vereine, Schulungsanbieter, Handwerk</div>
+      </section><section class="us-pr-paket" style="--i:2">
+        <div class="us-pr-p-kopf"><span class="us-pr-p-buchst">C</span><b>Komplettbestand</b><span class="muted">10 Geräte</span></div>
+        <label class="us-pr-p-preis"><input type="number" min="0" step="10" value="2499" data-usprpaket="c" aria-label="Paketpreis netto Komplettbestand" /><span>€ netto</span></label>
+        <div class="muted us-pr-p-sub">2.974 € brutto · 250 € je Gerät</div>
+        <div class="us-pr-pv"><span class="muted">als Paket</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill paket" style="left:50%;width:50%"></span></span><b class="">+197 €</b></div>
+        <div class="us-pr-pv"><span class="muted">einzeln über eBay</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill einzeln" style="left:50%;width:42.993920972644375%"></span></span><b class="">+170 €</b></div>
+        <ul class="us-pr-p-inhalt"><li>4× ThinkPad T14s Gen 3 (i5-1240P, 16 GB)</li><li>1× HP EliteBook 840 G6 (i5-8265U, 16 GB)</li><li>2× HP EliteBook 840 G5 (i5-8250U, 16 GB)</li><li>1× HP EliteBook 840 G5 (i5-8250U, 8 GB)</li><li>1× ThinkPad T14s Gen 1 (i5-10210U, 16 GB)</li><li>1× ThinkPad T14s Gen 1 (i5-10210U, 8 GB)</li></ul>
+        <div class="muted us-pr-p-fuss">Untergrenze 2.290 € netto (−12 €)<br>Firma mit Bedarf für ein ganzes Team, Wiederverkäufer</div>
+      </section></div></div>
+  <p class="hinweis" id="staffel"><b>Staffel:</b> ab 3 Geräten −5 % · ab 5 Geräten −10 %, mit Rechnung und 12 Monaten Gewährleistung.</p>
+
+  <details class="annahmen">
+    <summary>Annahmen anpassen</summary>
+    <div class="felder">
+      <label>eBay-Provision in %<input type="number" step="0.01" min="0" id="pProz" inputmode="decimal"></label>
+      <label>eBay fix je Verkauf €<input type="number" step="0.01" min="0" id="pFix" inputmode="decimal"></label>
+      <label>Versandetikett €<input type="number" step="0.01" min="0" id="pVersand" inputmode="decimal"></label>
+      <label>Verpackung je Gerät €<input type="number" step="0.01" min="0" id="pVerp" inputmode="decimal"></label>
+    </div>
+  </details>
+  <button type="button" class="knopf" id="reset">Auf Vorschlag zurücksetzen</button>
+
+  <p class="fuss" id="fuss">Rechenweg: Verkaufspreis ÷ 1,19 − Einkauf netto − Verpackung − Versandetikett − eBay-Gebühr netto (Provision + Fixbetrag). Kleinanzeigen mit Abholung: ohne Gebühr und Versand. Gewinnschwelle = eBay-Preis, ab dem ein Verkauf nichts mehr kostet. Marktspannen: Websuche 22.10.2026, Einzelangebote teils älter. Änderungen bleiben nur auf diesem Gerät.</p>
+</main>
+
+<script>
+'use strict';
+// us-preise.js — Reiter „Preise“ der Rubrik Unruh Secure: Abverkauf des Notebook-Restbestands.
+// Rechenkern (Marge je Kanal, Gewinnschwelle, Summen, Pakete) und String-Builder für die Bilder
+// (Preisleiter, Kanalvergleich, Pakete, Auktionsverlauf). Kein DOM, keine Abhängigkeit von app.js,
+// daher in Node testbar (UMD wie fi-werkzeuge-charts.js). Farben nur über Klassen und Tokens.
+// Daten: unruh-secure/data/preiskalkulation.json (Payload `preise` von /api/unruh-secure).
+// Marge wie im Geräte-Reiter (lib/unruh-secure.js geraeteAuswerten): VK netto − EK − Verpackung
+// − Versandetikett − eBay-Gebühr netto. Kleinanzeigen: Abholung, keine Gebühr, kein Versand.
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.USP = api;
+}(typeof self !== 'undefined' ? self : this, function () {
+  const UST = 1.19;
+  const KANAELE = [
+    { id: 'ebay', label: 'eBay', kurz: 'eBay Festpreis' },
+    { id: 'kleinanzeigen', label: 'Kleinanzeigen', kurz: 'Kleinanzeigen, Abholung' },
+    { id: 'auktion', label: 'Auktion', kurz: 'eBay-Auktion, erwarteter Zuschlag' },
+  ];
+  const MIT_GEBUEHR = { ebay: true, auktion: true, plan: true };
+  const AKTIV = { lager: true, reserviert: true };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+  function n(v) { const x = Number(v); return Number.isFinite(x) ? x : 0; }
+  function r2(v) { return Math.round(n(v) * 100) / 100; }
+  function eur(v, st) { return n(v).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: st == null ? 0 : st, maximumFractionDigits: st == null ? 0 : st }); }
+  function sEur(v) { const x = Math.round(n(v)); return (x > 0 ? '+' : x < 0 ? '−' : '±') + eur(Math.abs(x)); }
+  function param(kalk) {
+    const p = (kalk && kalk.parameter) || {};
+    return { ebayProzent: p.ebayProzent != null ? n(p.ebayProzent) : 0.0595, ebayFix: p.ebayFix != null ? n(p.ebayFix) : 0.54, versand: p.versand != null ? n(p.versand) : 7.69, paketVersandJeGeraet: n(p.paketVersandJeGeraet) };
+  }
+
+  // Netto-Ergebnis eines Verkaufs zum Bruttopreis über einen Kanal.
+  function marge(kanal, brutto, ek, p, verpackung) {
+    const netto = n(brutto) / UST;
+    const geb = MIT_GEBUEHR[kanal] ? (p.ebayProzent * n(brutto) + p.ebayFix) / UST : 0;
+    const versand = MIT_GEBUEHR[kanal] ? p.versand : 0;
+    return r2(netto - n(ek) - n(verpackung) - geb - versand);
+  }
+  // Bruttopreis, ab dem ein eBay-Verkauf das Gerät nichts mehr kostet.
+  function gewinnschwelle(ek, p, verpackung) {
+    return r2((n(ek) + n(verpackung) + p.versand + p.ebayFix / UST) * UST / (1 - p.ebayProzent));
+  }
+
+  function berechne(kalk, geraete, stamm) {
+    const p = param(kalk);
+    const verp = n((stamm || {}).verpackungJeGeraet);
+    const lager = (geraete || []).filter((g) => AKTIV[g.status] && g.typ !== 'zubehoer');
+    const bySku = new Map(lager.map((g) => [String(g.sku), g]));
+    const zugeordnet = new Set();
+    const gruppen = ((kalk && kalk.gruppen) || []).map((gr) => {
+      const ge = (gr.skus || []).map((s) => bySku.get(String(s))).filter(Boolean);
+      ge.forEach((g) => zugeordnet.add(String(g.sku)));
+      const pr = gr.preise || {};
+      const geraeteOut = ge.map((g) => ({
+        sku: g.sku, id: g.id, ek: n(g.ekNetto), planVk: g.vkPlanBrutto != null ? n(g.vkPlanBrutto) : null,
+        schwelle: gewinnschwelle(g.ekNetto, p, verp),
+        margen: {
+          ebay: marge('ebay', pr.ebay, g.ekNetto, p, verp),
+          kleinanzeigen: marge('kleinanzeigen', pr.kleinanzeigen, g.ekNetto, p, verp),
+          auktion: marge('auktion', pr.auktion, g.ekNetto, p, verp),
+          plan: g.vkPlanBrutto != null ? marge('plan', g.vkPlanBrutto, g.ekNetto, p, verp) : null,
+        },
+      }));
+      const sum = (k) => r2(geraeteOut.reduce((s, x) => s + n(x.margen[k]), 0));
+      const stk = geraeteOut.length;
+      const schwellen = geraeteOut.map((x) => x.schwelle);
+      return {
+        id: gr.id, label: gr.label || gr.id, detail: gr.detail || '', markt: gr.markt || {}, preise: { ebay: n(pr.ebay), kleinanzeigen: n(pr.kleinanzeigen), auktion: n(pr.auktion) },
+        untergrenze: gr.untergrenze != null ? n(gr.untergrenze) : null, preisvorschlag: gr.preisvorschlag || null, hoechstgebot: gr.hoechstgebot != null ? n(gr.hoechstgebot) : null,
+        geraete: geraeteOut, stk,
+        ek: r2(geraeteOut.reduce((s, x) => s + x.ek, 0)),
+        schwelleMin: stk ? Math.min(...schwellen) : null, schwelleMax: stk ? Math.max(...schwellen) : null,
+        planWerte: Array.from(new Set(geraeteOut.map((x) => x.planVk).filter((v) => v != null))).sort((a, b) => a - b),
+        summe: { ebay: sum('ebay'), kleinanzeigen: sum('kleinanzeigen'), auktion: sum('auktion'), plan: sum('plan') },
+        jeStueck: { ebay: stk ? r2(sum('ebay') / stk) : 0, kleinanzeigen: stk ? r2(sum('kleinanzeigen') / stk) : 0, auktion: stk ? r2(sum('auktion') / stk) : 0 },
+      };
+    });
+    const ohneGruppe = lager.filter((g) => !zugeordnet.has(String(g.sku))).map((g) => g.sku);
+    const aktive = gruppen.filter((g) => g.stk);
+    const tot = (k) => r2(aktive.reduce((s, g) => s + g.summe[k], 0));
+    const stueck = aktive.reduce((s, g) => s + g.stk, 0);
+    const ek = r2(aktive.reduce((s, g) => s + g.ek, 0));
+    const grMap = new Map(gruppen.map((g) => [g.id, g]));
+    const pakete = ((kalk && kalk.pakete) || []).map((pk) => {
+      const gs = (pk.gruppen || []).map((id) => grMap.get(id)).filter(Boolean);
+      const stk = gs.reduce((s, g) => s + g.stk, 0);
+      const pek = r2(gs.reduce((s, g) => s + g.ek, 0));
+      const kosten = stk * (verp + p.paketVersandJeGeraet);
+      const m = r2(n(pk.preisNetto) - pek - kosten);
+      return {
+        id: pk.id, label: pk.label || pk.id, zielgruppe: pk.zielgruppe || '', inhalt: gs.map((g) => g.stk + '× ' + g.label + (g.detail ? ' (' + g.detail.split(' · ').slice(0, 2).join(', ') + ')' : '')),
+        stk, ek: pek, preisNetto: n(pk.preisNetto), preisBrutto: r2(n(pk.preisNetto) * UST), jeGeraet: stk ? r2(n(pk.preisNetto) / stk) : 0,
+        untergrenzeNetto: pk.untergrenzeNetto != null ? n(pk.untergrenzeNetto) : null,
+        margeUntergrenze: pk.untergrenzeNetto != null ? r2(n(pk.untergrenzeNetto) - pek - kosten) : null,
+        marge: m, einzeln: r2(gs.reduce((s, g) => s + g.summe.ebay, 0)),
+      };
+    });
+    const komplett = pakete.slice().sort((a, b) => b.stk - a.stk)[0] || null;
+    const ueberSchwelle = aktive.reduce((s, g) => s + g.geraete.filter((x) => g.preise.ebay >= x.schwelle).length, 0);
+    const auktionen = ((kalk && kalk.auktionen) || []).map((a) => {
+      const g = grMap.get(a.gruppe);
+      const verlauf = (a.verlauf || []).map((x) => [String(x[0]), n(x[1])]);
+      const end = verlauf.length ? verlauf[verlauf.length - 1][1] : 0;
+      return Object.assign({}, a, { verlauf, hoechstgebot: end, schwelle: g && g.schwelleMax != null ? g.schwelleMax : null, margeBeiHoechstgebot: g && g.geraete.length ? marge('auktion', end, Math.max(...g.geraete.map((x) => x.ek)), p, verp) : null });
+    });
+    return {
+      parameter: p, verpackung: verp, gruppen, ohneGruppe, pakete, auktionen, staffel: (kalk && kalk.staffel) || [],
+      summen: {
+        stueck, ek, ueberSchwelle,
+        kanal: { plan: tot('plan'), ebay: tot('ebay'), kleinanzeigen: tot('kleinanzeigen'), auktion: tot('auktion'), paket: komplett ? komplett.marge : null },
+        umsatzBrutto: { ebay: r2(aktive.reduce((s, g) => s + g.stk * g.preise.ebay, 0)), kleinanzeigen: r2(aktive.reduce((s, g) => s + g.stk * g.preise.kleinanzeigen, 0)), auktion: r2(aktive.reduce((s, g) => s + g.stk * g.preise.auktion, 0)), plan: r2(aktive.reduce((s, g) => s + g.geraete.reduce((t, x) => t + n(x.planVk), 0), 0)) },
+      },
+      komplettPaketId: komplett ? komplett.id : null,
+    };
+  }
+
+  // ---------- Bilder ----------
+  // Gemeinsame €-Achse aller Zeilen, damit die Gruppen vergleichbar bleiben.
+  function achse(r) {
+    const werte = [];
+    r.gruppen.forEach((g) => { if (!g.stk) return; werte.push(g.preise.ebay, g.preise.kleinanzeigen, g.preise.auktion, g.schwelleMax, ...g.planWerte); ['privat', 'haendler'].forEach((k) => (g.markt[k] || []).forEach((v) => werte.push(n(v)))); if (g.hoechstgebot) werte.push(g.hoechstgebot); });
+    const lo = Math.max(0, Math.floor((Math.min(...werte, 200) - 40) / 100) * 100);
+    const hi = Math.ceil((Math.max(...werte, 300) + 40) / 100) * 100;
+    return { min: lo, max: hi };
+  }
+  function pos(v, ax) { return Math.max(0, Math.min(100, ((n(v) - ax.min) / (ax.max - ax.min)) * 100)); }
+  function achsenSkala(ax) {
+    let out = '';
+    for (let v = ax.min; v <= ax.max; v += 100) out += `<span class="us-pr-tick" style="left:${pos(v, ax)}%">${eur(v)}</span>`;
+    return `<div class="us-pr-skala" aria-hidden="true">${out}</div>`;
+  }
+  function band(werte, cls, ax, tip) {
+    if (!werte || werte.length < 2) return '';
+    const a = pos(werte[0], ax), b = pos(werte[1], ax);
+    return `<span class="us-pr-band ${cls}" style="left:${a}%;width:${Math.max(0.8, b - a)}%" data-tip="${esc(tip + ': ' + eur(werte[0]) + '–' + eur(werte[1]))}"></span>`;
+  }
+  function mark(v, cls, ax, tip, txt) {
+    if (v == null) return '';
+    return `<span class="us-pr-mark ${cls}" style="left:${pos(v, ax)}%" data-tip="${esc(tip)}">${txt ? `<i>${esc(txt)}</i>` : ''}</span>`;
+  }
+  // Eine Zeile der Preisleiter: links Name, Mitte Leiste mit Regler, rechts Marge groß.
+  function leiterZeile(g, kanal, ax, i) {
+    const preis = g.preise[kanal];
+    const jeStk = g.jeStueck[kanal], summe = g.summe[kanal];
+    const schwelle = g.schwelleMax;
+    const schwelleTxt = g.schwelleMin != null && Math.round(g.schwelleMin) !== Math.round(g.schwelleMax) ? `${eur(g.schwelleMin)}–${eur(g.schwelleMax)}` : eur(schwelle);
+    const verlust = kanal === 'kleinanzeigen' ? null : schwelle;
+    const plan = g.planWerte.map((v) => mark(v, 'us-pr-planmk', ax, 'alter Plan-VK ' + eur(v))).join('');
+    return `<li class="us-pr-row" style="--i:${i}" data-usprrow="${esc(g.id)}">
+      <div class="us-pr-name"><b>${esc(g.label)}</b><span class="muted">${esc(g.detail)}</span><span class="us-pr-stk">${g.stk} ${g.stk === 1 ? 'Gerät' : 'Geräte'} · EK ${eur(g.ek / Math.max(1, g.stk))}${g.stk > 1 ? ' Ø' : ''}</span></div>
+      <div class="us-pr-leiste">
+        <div class="us-pr-track">
+          ${verlust != null ? `<span class="us-pr-verlust" style="width:${pos(verlust, ax)}%" data-tip="${esc('Verlustzone bis zur Gewinnschwelle ' + schwelleTxt + ' (eBay)')}"></span>` : ''}
+          ${band(g.markt.privat, 'us-pr-band-privat', ax, 'Markt privat')}
+          ${band(g.markt.haendler, 'us-pr-band-haendler', ax, 'Markt Händler mit Gewährleistung')}
+          ${mark(schwelle, 'us-pr-schwelle', ax, 'Gewinnschwelle eBay ' + schwelleTxt)}
+          ${mark(g.ek / Math.max(1, g.stk), 'us-pr-ek', ax, 'Einkauf netto ' + eur(g.ek / Math.max(1, g.stk)))}
+          ${plan}
+          ${g.hoechstgebot ? mark(g.hoechstgebot, 'us-pr-gebot', ax, 'Höchstgebot Auktion Juli ' + eur(g.hoechstgebot), 'Gebot') : ''}
+          <span class="us-pr-dot${jeStk < 0 ? ' us-pr-dot-neg' : ''}" data-usprdot style="left:${pos(preis, ax)}%"><b data-usprpreis>${eur(preis)}</b></span>
+          <input type="range" class="us-pr-range" min="${ax.min}" max="${ax.max}" step="1" value="${Math.round(preis)}" data-usprgruppe="${esc(g.id)}" aria-label="${esc('Preis ' + g.label + ' ' + g.detail)}" />
+        </div>
+      </div>
+      <div class="us-pr-wert">
+        <b class="${jeStk < 0 ? 'fk-neg' : 'fk-pos'}" data-usprje>${sEur(jeStk)}</b><span class="muted">je Gerät</span>
+        <span class="us-pr-summe" data-usprsum>${g.stk > 1 ? `${g.stk} × = <b class="${summe < 0 ? 'fk-neg' : ''}">${sEur(summe)}</b>` : ''}</span>
+      </div>
+    </li>`;
+  }
+  function leiter(r, kanal) {
+    const ax = achse(r);
+    const zeilen = r.gruppen.filter((g) => g.stk).map((g, i) => leiterZeile(g, kanal, ax, i)).join('');
+    return `<div class="us-pr-leiter" data-uspraxis="${ax.min},${ax.max}">
+      <div class="us-pr-row us-pr-kopf"><div></div>${achsenSkala(ax)}<div></div></div>
+      <ul class="us-pr-rows">${zeilen}</ul>
+      <div class="us-pr-legende">
+        <span><i class="us-pr-lg us-pr-lg-dot"></i>Preisvorschlag (ziehen)</span>
+        <span><i class="us-pr-lg us-pr-lg-verlust"></i>Verlustzone bis Gewinnschwelle</span>
+        <span><i class="us-pr-lg us-pr-lg-privat"></i>Markt privat</span>
+        <span><i class="us-pr-lg us-pr-lg-haendler"></i>Markt Händler</span>
+        <span><i class="us-pr-lg us-pr-lg-ek"></i>Einkauf</span>
+        <span><i class="us-pr-lg us-pr-lg-plan"></i>alter Plan-VK</span>
+      </div></div>`;
+  }
+  // Teilaktualisierung während des Ziehens: nur Texte und Punkt einer Zeile, nie den Regler.
+  function zeilenWerte(g, kanal, ax) {
+    return { left: pos(g.preise[kanal], ax), preis: eur(g.preise[kanal]), je: sEur(g.jeStueck[kanal]), neg: g.jeStueck[kanal] < 0, summe: g.stk > 1 ? `${g.stk} × = <b class="${g.summe[kanal] < 0 ? 'fk-neg' : ''}">${sEur(g.summe[kanal])}</b>` : '' };
+  }
+
+  // Kanalvergleich: kumulierte Marge des Restbestands, Balken um die Nulllinie.
+  function kanalVergleich(r, kanal) {
+    const s = r.summen.kanal;
+    const reihen = [
+      { id: 'plan', label: 'alter Plan-VK', sub: 'eBay zu den Plan-Preisen vom Mai', wert: s.plan, waehlbar: false },
+      { id: 'ebay', label: 'eBay Festpreis', sub: 'Provision ' + (r.parameter.ebayProzent * 100).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' % + ' + eur(r.parameter.ebayFix, 2) + ', Etikett ' + eur(r.parameter.versand, 2), wert: s.ebay, waehlbar: true },
+      { id: 'kleinanzeigen', label: 'Kleinanzeigen', sub: 'Abholung, keine Gebühr', wert: s.kleinanzeigen, waehlbar: true },
+      { id: 'auktion', label: 'eBay-Auktion', sub: 'erwarteter Zuschlag', wert: s.auktion, waehlbar: true },
+    ];
+    if (s.paket != null) reihen.push({ id: 'paket', label: 'Komplettpaket Firma', sub: 'alle Geräte, netto an eine Firma', wert: s.paket, waehlbar: false });
+    const max = Math.max(1, ...reihen.map((x) => Math.abs(x.wert)));
+    return `<ul class="us-pr-kanal">${reihen.map((x, i) => {
+      const w = Math.max(1.5, (Math.abs(x.wert) / max) * 50);
+      return `<li class="us-pr-k${x.id === kanal ? ' active' : ''}${x.waehlbar ? ' waehlbar' : ''}" style="--i:${i}"${x.waehlbar ? ` data-usprkanal="${x.id}" role="button" tabindex="0"` : ''} data-tip="${esc(x.sub)}">
+        <span class="us-pr-k-name"><b>${esc(x.label)}</b><span class="muted">${esc(x.sub)}</span></span>
+        <span class="us-pr-k-track"><span class="us-pr-k-null"></span><span class="us-pr-k-fill ${x.wert < 0 ? 'neg' : 'pos'}${x.id === 'plan' ? ' alt' : ''}" style="${x.wert < 0 ? 'right:50%' : 'left:50%'};width:${w}%"></span></span>
+        <span class="us-pr-k-val ${x.wert < 0 ? 'fk-neg' : ''}">${sEur(x.wert)}</span></li>`;
+    }).join('')}</ul>`;
+  }
+
+  function paketKarten(r) {
+    return `<div class="us-pr-pakete">${r.pakete.map((pk, i) => {
+      const max = Math.max(1, Math.abs(pk.marge), Math.abs(pk.einzeln));
+      const bar = (v, cls, lbl) => `<div class="us-pr-pv"><span class="muted">${esc(lbl)}</span><span class="us-pr-pv-track"><span class="us-pr-pv-null"></span><span class="us-pr-pv-fill ${cls}${v < 0 ? ' neg' : ''}" style="${v < 0 ? 'right:50%' : 'left:50%'};width:${Math.max(1.5, (Math.abs(v) / max) * 50)}%"></span></span><b class="${v < 0 ? 'fk-neg' : ''}">${sEur(v)}</b></div>`;
+      return `<section class="us-pr-paket" style="--i:${i}">
+        <div class="us-pr-p-kopf"><span class="us-pr-p-buchst">${esc(String(pk.id).toUpperCase())}</span><b>${esc(pk.label)}</b><span class="muted">${pk.stk} Geräte</span></div>
+        <label class="us-pr-p-preis"><input type="number" min="0" step="10" value="${Math.round(pk.preisNetto)}" data-usprpaket="${esc(pk.id)}" aria-label="${esc('Paketpreis netto ' + pk.label)}" /><span>€ netto</span></label>
+        <div class="muted us-pr-p-sub">${eur(pk.preisBrutto)} brutto · ${eur(pk.jeGeraet)} je Gerät</div>
+        ${bar(pk.marge, 'paket', 'als Paket')}
+        ${bar(pk.einzeln, 'einzeln', 'einzeln über eBay')}
+        <ul class="us-pr-p-inhalt">${pk.inhalt.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+        <div class="muted us-pr-p-fuss">${pk.untergrenzeNetto != null ? `Untergrenze ${eur(pk.untergrenzeNetto)} netto (${sEur(pk.margeUntergrenze)})` : ''}${pk.zielgruppe ? `<br>${esc(pk.zielgruppe)}` : ''}</div>
+      </section>`;
+    }).join('')}</div>`;
+  }
+
+  // Auktionsverlauf als Treppenlinie: Preis über die Laufzeit, Linien für Mindestpreis und Gewinnschwelle.
+  function auktionChart(a) {
+    const W = 640, H = 220, L = 52, R = 16, T = 16, B = 30;
+    const t0 = Date.parse(a.start), t1 = Date.parse(a.ende);
+    const v = a.verlauf || [];
+    if (!v.length || !(t1 > t0)) return '<div class="empty">Kein Gebotsverlauf.</div>';
+    const yMax = Math.ceil(Math.max(a.mindestpreis || 0, a.schwelle || 0, ...v.map((x) => x[1])) / 100) * 100 + 50;
+    const x = (t) => L + ((Date.parse(t) - t0) / (t1 - t0)) * (W - L - R);
+    const y = (p) => T + (1 - p / yMax) * (H - T - B);
+    let d = `M${x(v[0][0]).toFixed(1)},${y(v[0][1]).toFixed(1)}`;
+    for (let i = 1; i < v.length; i++) d += ` H${x(v[i][0]).toFixed(1)} V${y(v[i][1]).toFixed(1)}`;
+    d += ` H${(W - R).toFixed(1)}`;
+    const grid = [];
+    for (let p = 0; p <= yMax; p += 100) grid.push(`<line x1="${L}" x2="${W - R}" y1="${y(p)}" y2="${y(p)}" class="us-pr-a-grid"/><text x="${L - 8}" y="${y(p) + 4}" class="us-pr-a-ax" text-anchor="end">${p} €</text>`);
+    const tage = [];
+    for (let t = t0; t <= t1 + 1; t += 86400000) { const xx = L + ((t - t0) / (t1 - t0)) * (W - L - R); const dt = new Date(t); tage.push(`<text x="${xx}" y="${H - 8}" class="us-pr-a-ax" text-anchor="middle">${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}.</text>`); }
+    // Liegen beide Linien dicht beieinander, steht die untere Beschriftung links unter ihrer Linie (rechts sitzt das Endgebot).
+    const unten = Math.min(n(a.mindestpreis) || Infinity, n(a.schwelle) || Infinity);
+    const links = (p) => p === unten && Math.abs(n(a.mindestpreis) - n(a.schwelle)) < yMax * 0.12;
+    const linie = (p, cls, txt) => p ? `<line x1="${L}" x2="${W - R}" y1="${y(p)}" y2="${y(p)}" class="${cls}"/><text x="${links(p) ? L + 6 : W - R}" y="${links(p) ? y(p) + 14 : y(p) - 5}" class="us-pr-a-lbl" text-anchor="${links(p) ? 'start' : 'end'}">${esc(txt)}</text>` : '';
+    const pts = v.map((p) => `<circle cx="${x(p[0])}" cy="${y(p[1])}" r="4" class="us-pr-a-pt"><title>${esc(new Date(p[0]).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' + eur(p[1]))}</title></circle>`).join('');
+    const end = v[v.length - 1];
+    return `<svg class="us-pr-auktion" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc('Gebotsverlauf ' + (a.titel || '') + ': von ' + eur(v[0][1]) + ' auf ' + eur(end[1]))}">
+      ${grid.join('')}${tage.join('')}
+      ${linie(a.mindestpreis, 'us-pr-a-min', 'Mindestpreis ' + eur(a.mindestpreis))}
+      ${linie(a.schwelle, 'us-pr-a-schwelle', 'Gewinnschwelle ' + eur(a.schwelle))}
+      <path d="${d}" class="us-pr-a-line"/>${pts}
+      <text x="${x(end[0]) - 8}" y="${y(end[1]) - 10}" class="us-pr-a-end" text-anchor="end">${eur(end[1])}</text>
+    </svg>`;
+  }
+
+  return { UST, KANAELE, marge, gewinnschwelle, berechne, achse, pos, leiter, zeilenWerte, kanalVergleich, paketKarten, auktionChart, eur, sEur, esc };
+}));
+
+</script>
+<script>
+'use strict';
+// us-preise-mobil-ui.js — Bausteine der Handy-Seite des Preissimulators (scripts/us-preise-mobil.js).
+// Reine String-Builder auf dem Ergebnis von USP.berechne: Das Erzeugerskript rendert damit den Inhalt vorab
+// in die Datei (lesbar auch ohne JavaScript, etwa in der iOS-Vorschau aus WhatsApp), der Browser rendert mit
+// denselben Funktionen neu, sobald simuliert wird. UMD wie public-v3/us-preise.js, braucht dessen API (usp).
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.USPM = api;
+}(typeof self !== 'undefined' ? self : this, function () {
+  // Eigene Achse je Gruppe, damit auch günstige Modelle auf dem Handy fein einstellbar bleiben.
+  function achse(g) {
+    const w = [g.preise.ebay, g.preise.kleinanzeigen, g.preise.auktion, g.schwelleMax, g.ek / Math.max(1, g.stk), ...g.planWerte];
+    ['privat', 'haendler'].forEach((k) => (g.markt[k] || []).forEach((v) => w.push(Number(v))));
+    if (g.hoechstgebot) w.push(g.hoechstgebot);
+    const lo = Math.max(0, Math.floor((Math.min(...w) - 30) / 50) * 50), hi = Math.ceil((Math.max(...w) + 30) / 50) * 50;
+    return { min: lo, max: hi };
+  }
+  const pos = (v, a) => Math.max(0, Math.min(100, ((v - a.min) / (a.max - a.min)) * 100));
+
+  function gruppe(usp, g, k, i) {
+    const { eur, sEur, esc } = usp;
+    const a = achse(g), preis = g.preise[k], je = g.jeStueck[k], sum = g.summe[k];
+    const ek = g.ek / Math.max(1, g.stk);
+    const band = (w, cls) => w && w.length === 2 ? `<span class="band ${cls}" style="left:${pos(w[0], a)}%;width:${Math.max(1, pos(w[1], a) - pos(w[0], a))}%"></span>` : '';
+    const mk = (v, cls) => v == null ? '' : `<span class="mk ${cls}" style="left:${pos(v, a)}%"></span>`;
+    const schwelle = g.schwelleMin != null && Math.round(g.schwelleMin) !== Math.round(g.schwelleMax) ? `${eur(g.schwelleMin)}–${eur(g.schwelleMax)}` : eur(g.schwelleMax);
+    const markt = (w) => w && w.length === 2 ? `${eur(w[0])}–${eur(w[1])}` : '–';
+    return `<section class="karte" style="--i:${i}" data-g="${esc(g.id)}">
+    <div class="g-kopf"><div><b>${esc(g.label)}</b><div class="muted">${esc(g.detail)}</div></div><div class="g-stk">${g.stk} ${g.stk === 1 ? 'Gerät' : 'Geräte'}<br>EK ${eur(ek)}${g.stk > 1 ? ' Ø' : ''}</div></div>
+    <div class="g-preis"><div class="wert" data-preis>${eur(preis)}<small>brutto</small></div>
+      <div class="stepper"><button type="button" data-schritt="-5" aria-label="5 € weniger">−</button><button type="button" data-schritt="5" aria-label="5 € mehr">+</button></div></div>
+    <div class="leiter">
+      <span class="basis"></span>
+      ${k !== 'kleinanzeigen' ? `<span class="verlust" style="width:${pos(g.schwelleMax, a)}%"></span>` : ''}
+      ${band(g.markt.privat, '')}${band(g.markt.haendler, 'h')}
+      ${k !== 'kleinanzeigen' ? mk(g.schwelleMax, 'schwelle') : ''}${mk(ek, 'ek')}${g.planWerte.map((v) => mk(v, 'plan')).join('')}${g.hoechstgebot ? mk(g.hoechstgebot, 'gebot') : ''}
+      <span class="punkt${je < 0 ? ' minus' : ''}" style="left:${pos(preis, a)}%"></span>
+      <input type="range" min="${a.min}" max="${a.max}" step="1" value="${Math.round(preis)}" class="${je < 0 ? 'minus' : ''}" aria-label="${esc('Preis ' + g.label + ' ' + g.detail)}">
+    </div>
+    <div class="skala"><span>${eur(a.min)}</span><span>${eur(a.max)}</span></div>
+    <div class="g-marge"><div class="je ${je < 0 ? 'neg' : 'pos'}" data-je>${sEur(je)}<small>je Gerät</small></div><div class="sum" data-sum>${summe(usp, g, k)}</div></div>
+    <div class="g-fakten">
+      <span>Gewinnschwelle eBay<br><b>${schwelle}</b></span><span>alter Plan-VK<br><b>${g.planWerte.length ? g.planWerte.map((v) => eur(v)).join(' / ') : '–'}</b></span>
+      <span>Markt privat<br><b>${markt(g.markt.privat)}</b></span><span>Markt Händler<br><b>${markt(g.markt.haendler)}</b></span>
+    </div>
+  </section>`;
+  }
+  function summe(usp, g, k) { return g.stk > 1 ? `${g.stk} × = <b class="${g.summe[k] < 0 ? 'neg' : ''}">${usp.sEur(g.summe[k])}</b>` : ''; }
+
+  // Alle Bereiche der Seite als HTML-Strings; Schlüssel = id des Zielelements (gMarge/gRueck nur Text).
+  function seite(usp, r, k, meta) {
+    const { eur, sEur, esc } = usp;
+    const m = r.summen.kanal[k] || 0;
+    const out = {
+      kanaele: usp.KANAELE.map((c) => `<button type="button" role="tab" class="${c.id === k ? 'on' : ''}" aria-selected="${c.id === k}" data-kanal="${c.id}">${esc(c.label)}</button>`).join(''),
+      gMarge: sEur(m), gMargeNeg: m < 0, gRueck: eur(r.summen.ek + m),
+      gruppen: r.gruppen.filter((g) => g.stk).map((g, i) => gruppe(usp, g, k, i)).join(''),
+      kanal: usp.kanalVergleich(r, k),
+      pakete: usp.paketKarten(r),
+      staffel: r.staffel.length ? '<b>Staffel:</b> ' + r.staffel.map((x) => `ab ${x.abStueck} Geräten −${Math.round(x.rabatt * 100)} %`).join(' · ') + ', mit Rechnung und 12 Monaten Gewährleistung.' : '',
+      aTitel: '', auktion: '',
+      stand: `Restbestand ${r.summen.stueck} Geräte · Stand ${esc(meta.standText || '')}`,
+      fuss: `Rechenweg: Verkaufspreis ÷ 1,19 − Einkauf netto − Verpackung − Versandetikett − eBay-Gebühr netto (Provision + Fixbetrag). Kleinanzeigen mit Abholung: ohne Gebühr und Versand. Gewinnschwelle = eBay-Preis, ab dem ein Verkauf nichts mehr kostet. Marktspannen: ${esc(meta.marktStand || '')}. Änderungen bleiben nur auf diesem Gerät.`,
+    };
+    const a = r.auktionen[0];
+    if (a) {
+      const g = r.gruppen.find((x) => x.id === a.gruppe);
+      const pv = g && g.preisvorschlag;
+      out.aTitel = esc(a.titel || 'Auktion');
+      out.auktion = usp.auktionChart(a) + `<div class="fakten"><div><span>Bieter · Gebote</span><b>${a.bieter || '–'} · ${a.gebote || '–'}</b></div><div><span>Kosten ohne Verkauf</span><b>${eur(a.kosten || 0)}</b></div><div><span>Ergebnis bei ${eur(a.hoechstgebot)}</span><b class="${(a.margeBeiHoechstgebot || 0) < 0 ? 'neg' : 'pos'}">${a.margeBeiHoechstgebot != null ? sEur(a.margeBeiHoechstgebot) : '–'}</b></div></div>
+      <p class="vorschlag">Mindestpreis ${eur(a.mindestpreis)} hat einen Verlust verhindert, die Gewinnschwelle liegt bei ${eur(a.schwelle || 0)}.${pv ? ` Besser: Festpreis ${eur(pv.angebot)} mit Preisvorschlag, automatisch annehmen ab ${eur(pv.annehmenAb)}, ablehnen unter ${eur(pv.ablehnenUnter)}.` : ''}</p>`;
+    }
+    return out;
+  }
+  return { achse, pos, gruppe, summe, seite };
+}));
+
+</script>
+<script>
+const DATEN = {"erzeugt":"2026-10-23","standText":"22.10.2026","kalk":{"version":1,"stand":"2026-10-22","marktStand":"Websuche 22.10.2026, Einzelangebote teils älter","parameter":{"ebayProzent":0.0595,"ebayFix":0.54,"versand":7.69,"paketVersandJeGeraet":0},"kanal":"ebay","gruppen":[{"id":"t14s-g3","label":"ThinkPad T14s Gen 3","detail":"i5-1240P · 16 GB · 256 GB · Folie A+","skus":["02","04","05","06"],"markt":{"privat":[450,550],"haendler":[600,610]},"preise":{"ebay":499,"kleinanzeigen":479,"auktion":340},"untergrenze":459,"preisvorschlag":{"angebot":549,"annehmenAb":499,"ablehnenUnter":459},"hoechstgebot":311},{"id":"840-g6-16","label":"HP EliteBook 840 G6","detail":"i5-8265U · 16 GB · Chassis A, Display A+","skus":["12"],"markt":{"privat":[180,220],"haendler":[189,259]},"preise":{"ebay":229,"kleinanzeigen":219,"auktion":175}},{"id":"840-g5-16","label":"HP EliteBook 840 G5","detail":"i5-8250U · 16 GB · Chassis A","skus":["10","11"],"markt":{"privat":[170,210],"haendler":[199,245]},"preise":{"ebay":209,"kleinanzeigen":199,"auktion":165}},{"id":"840-g5-8","label":"HP EliteBook 840 G5","detail":"i5-8250U · 8 GB · Folie A+","skus":["08"],"markt":{"privat":[150,180],"haendler":[170,190]},"preise":{"ebay":179,"kleinanzeigen":169,"auktion":140}},{"id":"t14s-g1-16","label":"ThinkPad T14s Gen 1","detail":"i5-10210U · 16 GB · Folie A+","skus":["16"],"markt":{"privat":[170,210],"haendler":[177,230]},"preise":{"ebay":219,"kleinanzeigen":209,"auktion":170}},{"id":"t14s-g1-8","label":"ThinkPad T14s Gen 1","detail":"i5-10210U · 8 GB · Folie A+","skus":["14"],"markt":{"privat":[150,190],"haendler":[170,210]},"preise":{"ebay":189,"kleinanzeigen":179,"auktion":150}}],"pakete":[{"id":"a","label":"Mobiles Team","gruppen":["t14s-g3"],"preisNetto":1599,"untergrenzeNetto":1450,"zielgruppe":"kleine Dienstleister, Beratungen, Startups"},{"id":"b","label":"Büro-Grundausstattung","gruppen":["840-g6-16","840-g5-16","840-g5-8","t14s-g1-16","t14s-g1-8"],"preisNetto":999,"untergrenzeNetto":950,"zielgruppe":"Vereine, Schulungsanbieter, Handwerk"},{"id":"c","label":"Komplettbestand","gruppen":["t14s-g3","840-g6-16","840-g5-16","840-g5-8","t14s-g1-16","t14s-g1-8"],"preisNetto":2499,"untergrenzeNetto":2290,"zielgruppe":"Firma mit Bedarf für ein ganzes Team, Wiederverkäufer"}],"staffel":[{"abStueck":3,"rabatt":0.05},{"abStueck":5,"rabatt":0.1}],"auktionen":[{"id":"2026-07-t14s-g3","titel":"ThinkPad T14s Gen 3, Auktion Juli","gruppe":"t14s-g3","start":"2026-07-21T19:47:26","ende":"2026-07-26T19:47:26","startpreis":100,"mindestpreis":450,"kosten":17,"bieter":9,"gebote":25,"verkauft":false,"verlauf":[["2026-07-21T19:47:26",100],["2026-07-22T14:01:54",101],["2026-07-22T16:20:24",103],["2026-07-22T16:20:29",106],["2026-07-22T16:20:58",109],["2026-07-22T16:21:21",151],["2026-07-22T16:21:35",201],["2026-07-22T16:49:05",203],["2026-07-23T17:21:17",235],["2026-07-24T00:31:35",251],["2026-07-26T17:09:28",261],["2026-07-26T18:52:50",301],["2026-07-26T19:47:21",311]]}],"geaendert":"2026-10-22"},"geraete":[{"sku":"02","typ":"notebook","status":"lager","ekNetto":306.9,"vkPlanBrutto":599},{"sku":"04","typ":"notebook","status":"lager","ekNetto":319.5,"vkPlanBrutto":629},{"sku":"05","typ":"notebook","status":"lager","ekNetto":319.5,"vkPlanBrutto":629},{"sku":"06","typ":"notebook","status":"lager","ekNetto":319.5,"vkPlanBrutto":629},{"sku":"14","typ":"notebook","status":"lager","ekNetto":155.7,"vkPlanBrutto":199},{"sku":"16","typ":"notebook","status":"lager","ekNetto":182.7,"vkPlanBrutto":229},{"sku":"12","typ":"notebook","status":"lager","ekNetto":180,"vkPlanBrutto":249},{"sku":"08","typ":"notebook","status":"lager","ekNetto":146.7,"vkPlanBrutto":189},{"sku":"10","typ":"notebook","status":"lager","ekNetto":166.5,"vkPlanBrutto":229},{"sku":"11","typ":"notebook","status":"lager","ekNetto":166.5,"vkPlanBrutto":229}],"verpackung":3.81};
+// Simulation: Kopie der Daten im Browser, Änderungen bleiben nur auf diesem Gerät (localStorage, falls erlaubt).
+const SPEICHER = 'notebook-preise-sim:' + DATEN.erzeugt;
+const $ = (s) => document.querySelector(s);
+const kopie = (x) => JSON.parse(JSON.stringify(x));
+let S = laden() || { kalk: kopie(DATEN.kalk), verpackung: DATEN.verpackung };
+function laden() { try { const x = JSON.parse(localStorage.getItem(SPEICHER) || 'null'); return x && x.kalk ? x : null; } catch (_) { return null; } }
+function sichern() { try { localStorage.setItem(SPEICHER, JSON.stringify(S)); } catch (_) {} }
+function kanal() { return S.kalk.kanal || 'ebay'; }
+function rechnen() { return USP.berechne(S.kalk, DATEN.geraete, { verpackungJeGeraet: S.verpackung }); }
+const eur = USP.eur, sEur = USP.sEur, esc = USP.esc;
+
+function meta() { return { standText: DATEN.standText, marktStand: S.kalk.marktStand || '' }; }
+function kopfWerte(r) {
+  const m = r.summen.kanal[kanal()] || 0;
+  const gm = $('#gMarge'); gm.textContent = sEur(m); gm.className = 'num ' + (m < 0 ? 'neg' : 'pos');
+  $('#gRueck').textContent = eur(r.summen.ek + m);
+}
+function summenNeu(r) {
+  kopfWerte(r);
+  $('#kanal').innerHTML = USP.kanalVergleich(r, kanal());
+  const pk = $('#pakete');
+  if (!pk.contains(document.activeElement)) pk.innerHTML = USP.paketKarten(r);
+}
+function alles() {
+  const r = rechnen(), k = kanal(), h = USPM.seite(USP, r, k, meta());
+  ['kanaele', 'gruppen', 'kanal', 'pakete', 'staffel', 'auktion', 'stand', 'fuss'].forEach((id) => { $('#' + id).innerHTML = h[id]; });
+  $('#aTitel').innerHTML = h.aTitel; $('#aTitel').hidden = $('#auktion').hidden = !h.auktion;
+  kopfWerte(r);
+  const p = S.kalk.parameter;
+  $('#pProz').value = Math.round(p.ebayProzent * 10000) / 100; $('#pFix').value = p.ebayFix; $('#pVersand').value = p.versand; $('#pVerp').value = S.verpackung;
+}
+
+// Während des Ziehens nur Texte, Kopf und Summen neu; die Karte selbst bleibt, damit der Regler nicht abreißt.
+function karteNeu(id) {
+  const r = rechnen(), k = kanal(), g = r.gruppen.find((x) => x.id === id), el = document.querySelector(`[data-g="${CSS.escape(id)}"]`);
+  if (g && el) {
+    el.querySelector('[data-preis]').innerHTML = `${eur(g.preise[k])}<small>brutto</small>`;
+    const je = el.querySelector('[data-je]'); je.innerHTML = `${sEur(g.jeStueck[k])}<small>je Gerät</small>`; je.className = 'je ' + (g.jeStueck[k] < 0 ? 'neg' : 'pos');
+    el.querySelector('[data-sum]').innerHTML = USPM.summe(USP, g, k);
+    el.querySelector('input[type=range]').classList.toggle('minus', g.jeStueck[k] < 0);
+  }
+  summenNeu(r);
+}
+function setzePreis(id, wert) {
+  const g = S.kalk.gruppen.find((x) => x.id === id);
+  if (!g) return;
+  g.preise = Object.assign({}, g.preise, { [kanal()]: Math.max(0, Math.round(wert)) });
+  sichern();
+}
+
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  const karte = t.closest && t.closest('[data-g]');
+  if (karte && t.type === 'range') { setzePreis(karte.dataset.g, Number(t.value)); karteNeu(karte.dataset.g); return; }
+  const num = (v) => { const x = Number(String(v).replace(',', '.')); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const p = S.kalk.parameter;
+  if (t.id === 'pProz' && num(t.value) != null) p.ebayProzent = num(t.value) / 100;
+  else if (t.id === 'pFix' && num(t.value) != null) p.ebayFix = num(t.value);
+  else if (t.id === 'pVersand' && num(t.value) != null) p.versand = num(t.value);
+  else if (t.id === 'pVerp' && num(t.value) != null) S.verpackung = num(t.value);
+  else if (t.dataset && t.dataset.usprpaket !== undefined && num(t.value) != null) { const pk = S.kalk.pakete.find((x) => x.id === t.dataset.usprpaket); if (pk) pk.preisNetto = num(t.value); sichern(); const r = rechnen(); kopfWerte(r); $('#kanal').innerHTML = USP.kanalVergleich(r, kanal()); return; }
+  else return;
+  sichern();
+  const offen = document.activeElement && document.activeElement.id;
+  alles();
+  if (offen) { const f = document.getElementById(offen); if (f) f.focus(); }
+});
+document.addEventListener('change', (e) => { if (e.target.dataset && e.target.dataset.usprpaket !== undefined) $('#pakete').innerHTML = USP.paketKarten(rechnen()); });
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  const kb = t.closest('[data-kanal]') || t.closest('[data-usprkanal]');
+  if (kb) { S.kalk.kanal = kb.dataset.kanal || kb.dataset.usprkanal; sichern(); alles(); return; }
+  const sb = t.closest('[data-schritt]');
+  if (sb) { const id = sb.closest('[data-g]').dataset.g; const g = S.kalk.gruppen.find((x) => x.id === id); setzePreis(id, (g.preise[kanal()] || 0) + Number(sb.dataset.schritt)); const y = window.scrollY; alles(); window.scrollTo(0, y); return; }
+  if (t.id === 'reset') { S = { kalk: kopie(DATEN.kalk), verpackung: DATEN.verpackung }; try { localStorage.removeItem(SPEICHER); } catch (_) {} alles(); }
+});
+
+// Hell/Dunkel: folgt dem System, der Schalter überstimmt es für diese Seite.
+(function () {
+  const cb = $('#dunkel');
+  let gewaehlt = null; try { gewaehlt = localStorage.getItem('notebook-preise-sim:theme'); } catch (_) {}
+  const sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dunkel = gewaehlt ? gewaehlt === 'dark' : sys;
+  if (gewaehlt) document.documentElement.dataset.theme = gewaehlt;
+  cb.checked = dunkel;
+  cb.addEventListener('change', () => { const th = cb.checked ? 'dark' : 'light'; document.documentElement.dataset.theme = th; try { localStorage.setItem('notebook-preise-sim:theme', th); } catch (_) {} });
+})();
+// Ohne gespeicherte Simulation steht der vorgerenderte Inhalt schon richtig da; sonst mit dem eigenen Stand neu.
+if (laden()) alles(); else { const p = S.kalk.parameter; $('#pProz').value = Math.round(p.ebayProzent * 10000) / 100; $('#pFix').value = p.ebayFix; $('#pVersand').value = p.versand; $('#pVerp').value = S.verpackung; }
+</script>
+</body>
+</html>
